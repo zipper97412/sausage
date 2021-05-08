@@ -1,10 +1,6 @@
-
-
 use anyhow::Result;
 
 use super::BlockVisitor;
-
-
 
 /// filter out already seen blocks using the BlockId, a DB file is used as LRU Cache to remember BlockIds
 struct BlockLRUCacheFilter<T> {
