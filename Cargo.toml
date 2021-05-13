@@ -16,7 +16,7 @@ change_watcher = ["serde"]
 
 
 
-build-binary = ["clap"]
+build-binary = ["clap", "flate2"]
 
 [[bin]]         
 name = "sausage"
@@ -34,6 +34,6 @@ serde_json = { version = "*", optional = true }
 serde = { version = "*", features = ["derive"], optional = true }
 
 clap = { version = "3.0.0-beta.2", optional = true }
-
+flate2 = { version = "*", optional = true }
 [dev-dependencies]
 tempdir = "*"

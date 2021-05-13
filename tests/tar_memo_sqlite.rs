@@ -13,11 +13,14 @@ fn run_memoized_walker(
     path: impl AsRef<Path>,
     tar_path: impl AsRef<Path>,
 ) -> Result<u32> {
+    let path = path.as_ref();
     let mut tar_file = File::create(tar_path)?;
     let proc = TarProcessor::new(&mut tar_file);
     let tx = db.transaction()?;
-    let mut walker = MemoizedFsWalker::new(proc);
-    let (_, session_id, _) = walker.hash_path(&*tx, path)?;
+    let walker = MemoizedFsWalker::new(&*tx);
+    let mut adder = walker.start_processing(proc)?;
+    let _ = adder.add_path(path, path.file_name().unwrap())?;
+    let (_, session_id) = adder.finish_processing()?;
     tx.commit()?;
     Ok(session_id)
 }

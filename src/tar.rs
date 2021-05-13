@@ -12,19 +12,6 @@ struct TarNotifier<W: Write> {
     builder: Builder<W>,
 }
 
-impl<W: Write> TarNotifier<W> {
-    fn notify_file_or_sym_added(&mut self, path: &Path) -> Result<()> {
-        let rel_path = path.strip_prefix("/")?;
-        self.builder.append_path_with_name(path, rel_path)?;
-        Ok(())
-    }
-    fn notify_folder_added(&mut self, path: &Path) -> Result<()> {
-        let rel_path = path.strip_prefix("/")?;
-        self.builder.append_dir(rel_path, path)?;
-        Ok(())
-    }
-}
-
 impl<W: Write> TarProcessor<W> {
     pub fn new(writer: W) -> Self {
         let mut builder = Builder::new(writer);
@@ -36,41 +23,47 @@ impl<W: Write> TarProcessor<W> {
 }
 
 impl<W: Write> FsChangeWatcher for TarNotifier<W> {
-    fn notify_file_added(&mut self, path: &Path) -> Result<()> {
-        self.notify_file_or_sym_added(path)
+    fn notify_file_added(&mut self, path: &Path, mount_path: &Path) -> Result<()> {
+        self.builder.append_path_with_name(path, mount_path)?;
+        Ok(())
     }
 
-    fn notify_file_changed(&mut self, path: &Path) -> Result<()> {
-        self.notify_file_or_sym_added(path)
+    fn notify_file_changed(&mut self, path: &Path, mount_path: &Path) -> Result<()> {
+        self.builder.append_path_with_name(path, mount_path)?;
+        Ok(())
     }
 
-    fn notify_file_removed(&mut self, _path: &Path) -> Result<()> {
+    fn notify_file_removed(&mut self, _path: &Path, _mount_path: &Path) -> Result<()> {
         // TODO add file removed marker
         Ok(())
     }
 
-    fn notify_symlink_added(&mut self, path: &Path) -> Result<()> {
-        self.notify_file_or_sym_added(path)
+    fn notify_symlink_added(&mut self, path: &Path, mount_path: &Path) -> Result<()> {
+        self.builder.append_path_with_name(path, mount_path)?;
+        Ok(())
     }
 
-    fn notify_symlink_changed(&mut self, path: &Path) -> Result<()> {
-        self.notify_file_or_sym_added(path)
+    fn notify_symlink_changed(&mut self, path: &Path, mount_path: &Path) -> Result<()> {
+        self.builder.append_path_with_name(path, mount_path)?;
+        Ok(())
     }
 
-    fn notify_symlink_removed(&mut self, _path: &Path) -> Result<()> {
+    fn notify_symlink_removed(&mut self, _path: &Path, _mount_path: &Path) -> Result<()> {
         // TODO add file removed marker
         Ok(())
     }
 
-    fn notify_folder_added(&mut self, path: &Path) -> Result<()> {
-        self.notify_folder_added(path)
+    fn notify_folder_added(&mut self, path: &Path, mount_path: &Path) -> Result<()> {
+        self.builder.append_dir(mount_path, path)?;
+        Ok(())
     }
 
-    fn notify_folder_changed(&mut self, path: &Path) -> Result<()> {
-        self.notify_folder_added(path)
+    fn notify_folder_changed(&mut self, path: &Path, mount_path: &Path) -> Result<()> {
+        self.builder.append_dir(mount_path, path)?;
+        Ok(())
     }
 
-    fn notify_folder_removed(&mut self, _path: &Path) -> Result<()> {
+    fn notify_folder_removed(&mut self, _path: &Path, _mount_path: &Path) -> Result<()> {
         // TODO add file removed marker
         Ok(())
     }
@@ -79,20 +72,21 @@ impl<W: Write> FsChangeWatcher for TarNotifier<W> {
 impl<W: Write> FsProcessor for TarProcessor<W> {
     type Item = FsNode;
 
-    fn process_file(&mut self, path: &Path, previous: Option<Self::Item>) -> Result<Self::Item> {
-        self.0.process_file(path, previous)
+    fn process_file(&mut self, path: &Path, mount_path: &Path, previous: Option<Self::Item>) -> Result<Self::Item> {
+        self.0.process_file(path, mount_path, previous)
     }
 
-    fn process_symlink(&mut self, path: &Path, previous: Option<Self::Item>) -> Result<Self::Item> {
-        self.0.process_symlink(path, previous)
+    fn process_symlink(&mut self, path: &Path, mount_path: &Path, previous: Option<Self::Item>) -> Result<Self::Item> {
+        self.0.process_symlink(path, mount_path, previous)
     }
 
     fn process_folder(
         &mut self,
-        path: &Path,
+        path: &Path, 
+        mount_path: &Path,
         sub: HashMap<PathBuf, FsEntry<Self::Item>>,
         previous: Option<Self::Item>,
     ) -> Result<Self::Item> {
-        self.0.process_folder(path, sub, previous)
+        self.0.process_folder(path, mount_path, sub, previous)
     }
 }

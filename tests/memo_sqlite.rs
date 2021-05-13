@@ -17,9 +17,11 @@ fn test1() -> Result<()> {
     let testdir = new_asset_full(&tmpdir, "asset")?;
     {
         let tx = db.transaction()?;
-        let mut walker = MemoizedFsWalker::new(proc);
+        let walker = MemoizedFsWalker::new(&*tx);
+        let mut adder = walker.start_processing(proc)?;
         // WORKSPACE
-        let _ = walker.hash_path(&*tx, &testdir)?;
+        let _ = adder.add_path(&testdir, testdir.file_name().unwrap())?;
+        let _ = adder.finish_processing()?;
         tx.commit()?;
     }
 

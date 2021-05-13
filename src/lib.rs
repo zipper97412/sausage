@@ -34,15 +34,16 @@ pub trait FsProcessor {
     type Item;
 
     /// process a file, return an item, this item will be cached in the `MemoizedFsWalker` database
-    fn process_file(&mut self, path: &Path, previous: Option<Self::Item>) -> Result<Self::Item>;
+    fn process_file(&mut self, path: &Path, mount_path: &Path, previous: Option<Self::Item>) -> Result<Self::Item>;
 
     /// process a symlink, return an item, this item will be cached in the `MemoizedFsWalker` database
-    fn process_symlink(&mut self, path: &Path, previous: Option<Self::Item>) -> Result<Self::Item>;
+    fn process_symlink(&mut self, path: &Path, mount_path: &Path, previous: Option<Self::Item>) -> Result<Self::Item>;
 
     /// process a symlink, return an item, this item will be cached in the `MemoizedFsWalker` database
     fn process_folder(
         &mut self,
         path: &Path,
+        mount_path: &Path,
         sub: HashMap<PathBuf, FsEntry<Self::Item>>,
         previous: Option<Self::Item>,
     ) -> Result<Self::Item>;
