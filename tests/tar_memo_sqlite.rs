@@ -1,7 +1,7 @@
-use std::{fs::File, path::Path};
+use std::{fs::File, path::Path, thread::sleep, time::Duration};
 
 use rusqlite::Connection;
-use sausage::{MemoizedFsWalker, TarProcessor};
+use sausage::{MemoizedFsWalker, TarProcessor, rollback_before_session_id};
 
 mod common;
 use common::*;
@@ -12,14 +12,14 @@ fn run_memoized_walker(
     db: &mut Connection,
     path: impl AsRef<Path>,
     tar_path: impl AsRef<Path>,
-) -> Result<()> {
+) -> Result<u32> {
     let mut tar_file = File::create(tar_path)?;
     let proc = TarProcessor::new(&mut tar_file);
     let tx = db.transaction()?;
     let mut walker = MemoizedFsWalker::new(proc);
-    let _ = walker.hash_path(&*tx, path)?;
+    let (_, session_id, _) = walker.hash_path(&*tx, path)?;
     tx.commit()?;
-    Ok(())
+    Ok(session_id)
 }
 
 #[test]
@@ -35,7 +35,13 @@ fn test_many_run() -> Result<()> {
 
     update_asset_full_1(&testdir)?;
 
-    run_memoized_walker(&mut db, &testdir, tmpdir.path().join("testing-diff.tar"))?;
+    sleep(Duration::from_secs(1)); //wait for FS modification to be visible, we are too fast!
+
+    let id = run_memoized_walker(&mut db, &testdir, tmpdir.path().join("testing-diff.tar"))?;
+
+    rollback_before_session_id(&db, id)?;
+
+    run_memoized_walker(&mut db, &testdir, tmpdir.path().join("testing-diff-rollback.tar"))?;
 
     // CHECK\
 

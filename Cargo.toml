@@ -6,12 +6,34 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = [ "sqlite", "tar", "build-binary" ]
+sqlite = [ "rusqlite", "bincode"]
+sqlite_debug = ["serde_json"]
+tar = [ "tar_impl", "change_watcher" ]
+
+change_watcher = ["serde"]
+
+
+
+build-binary = ["clap"]
+
+[[bin]]         
+name = "sausage"
+required-features = [ "sqlite", "tar", "build-binary" ]
+
 [dependencies]
 # ipfs-unixfs = { path = "../rust-ipfs/unixfs" }
 # cid = "*"
 anyhow = "*"
-rusqlite = "*"
-tar_impl = { package = "tar", version = "*" }
+rusqlite = { version = "*", optional = true }
+tar_impl = { package = "tar", version = "*", optional = true }
+bincode = { version = "*", optional = true }
+serde_json = { version = "*", optional = true }
+
+serde = { version = "*", features = ["derive"], optional = true }
+
+clap = { version = "3.0.0-beta.2", optional = true }
 
 [dev-dependencies]
 tempdir = "*"

@@ -1,15 +1,24 @@
 mod memoized;
 pub use memoized::{MemoizedFsCache, MemoizedFsCacheSession, MemoizedFsWalker};
 
+#[cfg(feature = "sqlite")]
 mod sqlite;
-pub use sqlite::setup_sqlite_cache;
+#[cfg(feature = "sqlite")]
+pub use sqlite::{setup_sqlite_cache, rollback_before_session_id};
 
 //mod ipfs;
 
+#[cfg(feature = "tar")]
 mod tar;
+#[cfg(feature = "tar")]
 pub use tar::TarProcessor;
 
-use std::{collections::HashMap, ffi::OsString, path::Path, time::SystemTime};
+#[cfg(feature = "change_watcher")]
+mod change_watcher;
+#[cfg(feature = "change_watcher")]
+pub use change_watcher::{ChangeNotifier, FsChangeWatcher};
+
+use std::{collections::HashMap, path::{Path, PathBuf}, time::SystemTime};
 
 use anyhow::Result;
 
@@ -25,15 +34,16 @@ pub trait FsProcessor {
     type Item;
 
     /// process a file, return an item, this item will be cached in the `MemoizedFsWalker` database
-    fn process_file(&mut self, path: &Path) -> Result<Self::Item>;
+    fn process_file(&mut self, path: &Path, previous: Option<Self::Item>) -> Result<Self::Item>;
 
     /// process a symlink, return an item, this item will be cached in the `MemoizedFsWalker` database
-    fn process_symlink(&mut self, path: &Path) -> Result<Self::Item>;
+    fn process_symlink(&mut self, path: &Path, previous: Option<Self::Item>) -> Result<Self::Item>;
 
     /// process a symlink, return an item, this item will be cached in the `MemoizedFsWalker` database
     fn process_folder(
         &mut self,
         path: &Path,
-        sub: HashMap<OsString, FsEntry<Self::Item>>,
+        sub: HashMap<PathBuf, FsEntry<Self::Item>>,
+        previous: Option<Self::Item>,
     ) -> Result<Self::Item>;
 }

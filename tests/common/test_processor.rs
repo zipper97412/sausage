@@ -1,8 +1,8 @@
 #![allow(unused)]
 use anyhow::Result;
 use sausage::{FsEntry, FsProcessor};
-use std::io::Write;
-use std::{collections::HashMap, ffi::OsString, path::Path};
+use std::{io::Write, path::PathBuf};
+use std::{collections::HashMap, path::Path};
 
 pub struct TestProcessor<W: Write> {
     acc: W,
@@ -18,12 +18,12 @@ impl<W: Write> TestProcessor<W> {
 impl<W: Write> FsProcessor for TestProcessor<W> {
     type Item = Option<bool>;
 
-    fn process_file(&mut self, path: &Path) -> Result<Self::Item> {
+    fn process_file(&mut self, path: &Path, previous: Option<Self::Item>) -> Result<Self::Item> {
         writeln!(&mut self.acc, "F|{}", path.to_string_lossy())?;
         Ok(None)
     }
 
-    fn process_symlink(&mut self, path: &Path) -> Result<Self::Item> {
+    fn process_symlink(&mut self, path: &Path, previous: Option<Self::Item>) -> Result<Self::Item> {
         writeln!(&mut self.acc, "S|{}", path.to_string_lossy())?;
         Ok(None)
     }
@@ -31,7 +31,8 @@ impl<W: Write> FsProcessor for TestProcessor<W> {
     fn process_folder(
         &mut self,
         path: &Path,
-        sub: HashMap<OsString, FsEntry<Self::Item>>,
+        sub: HashMap<PathBuf, FsEntry<Self::Item>>,
+        previous: Option<Self::Item>,
     ) -> Result<Self::Item> {
         writeln!(&mut self.acc, "D|{}|{}", path.to_string_lossy(), sub.len())?;
         Ok(None)
