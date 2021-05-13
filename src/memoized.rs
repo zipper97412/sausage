@@ -1,5 +1,7 @@
 use anyhow::Result;
-use std::{cmp::max, collections::HashMap, fs::read_dir, marker::PhantomData, path::Path, time::SystemTime};
+use std::{
+    cmp::max, collections::HashMap, fs::read_dir, marker::PhantomData, path::Path, time::SystemTime,
+};
 
 use super::{FsEntry, FsProcessor};
 
@@ -33,12 +35,18 @@ pub struct MemoizedFsWalker<I, C: MemoizedFsCache<I>> {
 
 impl<I, C: MemoizedFsCache<I>> MemoizedFsWalker<I, C> {
     pub fn new(cache: C) -> Self {
-        Self{cache, _ph: PhantomData}
+        Self {
+            cache,
+            _ph: PhantomData,
+        }
     }
-    pub fn start_processing<F: FsProcessor<Item = I>>(self, fs_processor: F) -> Result<MemoizedFsWalkerSession<F, C::Session>> {
-        Ok(MemoizedFsWalkerSession { 
-            fs_processor, 
-            session: self.cache.start_session()?
+    pub fn start_processing<F: FsProcessor<Item = I>>(
+        self,
+        fs_processor: F,
+    ) -> Result<MemoizedFsWalkerSession<F, C::Session>> {
+        Ok(MemoizedFsWalkerSession {
+            fs_processor,
+            session: self.cache.start_session()?,
         })
     }
 }
@@ -50,8 +58,11 @@ pub struct MemoizedFsWalkerSession<F: FsProcessor, S: MemoizedFsCacheSession<F::
 }
 
 impl<F: FsProcessor, S: MemoizedFsCacheSession<F::Item>> MemoizedFsWalkerSession<F, S> {
-
-    pub fn add_path(&mut self, path: impl AsRef<Path>, mount_path: impl AsRef<Path>) -> Result<FsEntry<F::Item>> {
+    pub fn add_path(
+        &mut self,
+        path: impl AsRef<Path>,
+        mount_path: impl AsRef<Path>,
+    ) -> Result<FsEntry<F::Item>> {
         let path = path.as_ref();
         let mount_path = mount_path.as_ref();
         let meta = path.symlink_metadata()?;
@@ -59,7 +70,10 @@ impl<F: FsProcessor, S: MemoizedFsCacheSession<F::Item>> MemoizedFsWalkerSession
         let ft = meta.file_type();
         if ft.is_file() {
             let fs_hasher = &mut self.fs_processor;
-            self.session.get_update_entry_from_cache(path, mtime, |opt_prev| fs_hasher.process_file(path, mount_path, opt_prev))
+            self.session
+                .get_update_entry_from_cache(path, mtime, |opt_prev| {
+                    fs_hasher.process_file(path, mount_path, opt_prev)
+                })
         } else if ft.is_dir() {
             let mut max_mtime = mtime;
             let mut entry_map = HashMap::new();
@@ -72,17 +86,24 @@ impl<F: FsProcessor, S: MemoizedFsCacheSession<F::Item>> MemoizedFsWalkerSession
             }
 
             let fs_hasher = &mut self.fs_processor;
-            self.session.get_update_entry_from_cache(path, mtime, |opt_prev| {
-                fs_hasher.process_folder(path, mount_path, entry_map, opt_prev)
-            })
+            self.session
+                .get_update_entry_from_cache(path, mtime, |opt_prev| {
+                    fs_hasher.process_folder(path, mount_path, entry_map, opt_prev)
+                })
         } else {
             let fs_hasher = &mut self.fs_processor;
-            self.session.get_update_entry_from_cache(path, mtime, |opt_prev| fs_hasher.process_symlink(path, mount_path, opt_prev))
+            self.session
+                .get_update_entry_from_cache(path, mtime, |opt_prev| {
+                    fs_hasher.process_symlink(path, mount_path, opt_prev)
+                })
         }
     }
 
     pub fn finish_processing(self) -> Result<(MemoizedFsWalker<F::Item, S::Cache>, u32)> {
         let session_id = self.session.get_id();
-        Ok((MemoizedFsWalker::new(self.session.end_session()?), session_id))
+        Ok((
+            MemoizedFsWalker::new(self.session.end_session()?),
+            session_id,
+        ))
     }
 }

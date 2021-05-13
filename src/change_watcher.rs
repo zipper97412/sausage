@@ -1,8 +1,11 @@
-use std::{collections::{HashMap, HashSet}, path::{Path, PathBuf}};
+use std::{
+    collections::{HashMap, HashSet},
+    path::{Path, PathBuf},
+};
 
 use anyhow::Result;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::{FsEntry, FsProcessor};
 
@@ -39,14 +42,13 @@ impl FsNode {
         match self {
             FsNode::File => FsNodeType::File,
             FsNode::Symlink => FsNodeType::Symlink,
-            FsNode::Folder(_) => FsNodeType::Folder
+            FsNode::Folder(_) => FsNodeType::Folder,
         }
     }
 }
 
-
 pub struct ChangeNotifier<W: FsChangeWatcher> {
-    watcher: W
+    watcher: W,
 }
 
 impl<W: FsChangeWatcher> ChangeNotifier<W> {
@@ -58,7 +60,12 @@ impl<W: FsChangeWatcher> ChangeNotifier<W> {
 impl<W: FsChangeWatcher> FsProcessor for ChangeNotifier<W> {
     type Item = FsNode;
 
-    fn process_file(&mut self, path: &Path, mount_path: &Path, previous: Option<Self::Item>) -> Result<Self::Item> {
+    fn process_file(
+        &mut self,
+        path: &Path,
+        mount_path: &Path,
+        previous: Option<Self::Item>,
+    ) -> Result<Self::Item> {
         match previous {
             Some(FsNode::File) => {
                 self.watcher.notify_file_changed(path, mount_path)?;
@@ -78,7 +85,12 @@ impl<W: FsChangeWatcher> FsProcessor for ChangeNotifier<W> {
         Ok(FsNode::File)
     }
 
-    fn process_symlink(&mut self, path: &Path, mount_path: &Path, previous: Option<Self::Item>) -> Result<Self::Item> {
+    fn process_symlink(
+        &mut self,
+        path: &Path,
+        mount_path: &Path,
+        previous: Option<Self::Item>,
+    ) -> Result<Self::Item> {
         match previous {
             Some(FsNode::File) => {
                 self.watcher.notify_file_removed(path, mount_path)?;
@@ -100,12 +112,15 @@ impl<W: FsChangeWatcher> FsProcessor for ChangeNotifier<W> {
 
     fn process_folder(
         &mut self,
-        path: &Path, 
+        path: &Path,
         mount_path: &Path,
         sub: HashMap<PathBuf, FsEntry<Self::Item>>,
         previous: Option<Self::Item>,
     ) -> Result<Self::Item> {
-        let new_sub: HashMap<_, _> = sub.into_iter().map(|(k, v)| (k, v.item.node_type())).collect();
+        let new_sub: HashMap<_, _> = sub
+            .into_iter()
+            .map(|(k, v)| (k, v.item.node_type()))
+            .collect();
         match previous {
             Some(FsNode::File) => {
                 self.watcher.notify_file_removed(path, mount_path)?;
@@ -125,13 +140,16 @@ impl<W: FsChangeWatcher> FsProcessor for ChangeNotifier<W> {
                     let new_mount_path = mount_path.join(sub_path);
                     match note_type {
                         FsNodeType::File => {
-                            self.watcher.notify_file_removed(&full_sub_path, &new_mount_path)?;
+                            self.watcher
+                                .notify_file_removed(&full_sub_path, &new_mount_path)?;
                         }
                         FsNodeType::Symlink => {
-                            self.watcher.notify_symlink_removed(&full_sub_path, &new_mount_path)?;
+                            self.watcher
+                                .notify_symlink_removed(&full_sub_path, &new_mount_path)?;
                         }
                         FsNodeType::Folder => {
-                            self.watcher.notify_folder_removed(&full_sub_path, &new_mount_path)?;
+                            self.watcher
+                                .notify_folder_removed(&full_sub_path, &new_mount_path)?;
                         }
                     }
                 }
@@ -143,5 +161,4 @@ impl<W: FsChangeWatcher> FsProcessor for ChangeNotifier<W> {
         }
         Ok(FsNode::Folder(new_sub))
     }
-
 }

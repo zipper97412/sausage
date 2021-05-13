@@ -1,8 +1,15 @@
 use anyhow::Result;
-use rusqlite::{Connection, ToSql, params, types::{FromSql, FromSqlError, FromSqlResult, ToSqlOutput, Value, ValueRef}};
-use std::{path::Path, time::{Duration, SystemTime}};
+use rusqlite::{
+    params,
+    types::{FromSql, FromSqlError, FromSqlResult, ToSqlOutput, Value, ValueRef},
+    Connection, ToSql,
+};
+use std::{
+    path::Path,
+    time::{Duration, SystemTime},
+};
 
-use crate::{MemoizedFsCache};
+use crate::MemoizedFsCache;
 
 use super::{FsEntry, MemoizedFsCacheSession};
 
@@ -15,14 +22,14 @@ impl<'c, I: ToSql + FromSql> MemoizedFsCache<I> for &'c Connection {
     type Session = SqliteSycnSession<'c>;
 
     fn start_session(self) -> Result<Self::Session> {
-
-        
-        self.execute(r#"
+        self.execute(
+            r#"
         CREATE TEMP TABLE fs_walker_last_session_seen_rows (
             cache_row ROWID NOT NULL PRIMARY KEY
         );
-        "#, [])?;
-
+        "#,
+            [],
+        )?;
 
         let mut stmt = self.prepare_cached(
             r#"
@@ -57,7 +64,7 @@ impl<'c, I: ToSql + FromSql> MemoizedFsCacheSession<I> for SqliteSycnSession<'c>
         Op: FnOnce(Option<I>) -> Result<I>,
     {
         use rusqlite::OptionalExtension;
-        
+
         let mut stmt = self.db.prepare_cached(
             r#"
         SELECT item, mtime_sec, mtime_nano, rowid FROM fs_walker_cache WHERE path = ?1
@@ -74,10 +81,7 @@ impl<'c, I: ToSql + FromSql> MemoizedFsCacheSession<I> for SqliteSycnSession<'c>
                 let mtime_nano = row.get(2)?;
                 let mtime_dur = Duration::new(mtime_sec, mtime_nano);
                 let mtime = SystemTime::UNIX_EPOCH + mtime_dur;
-                Ok((FsEntry {
-                    mtime,
-                    item,
-                }, row.get(3)?))
+                Ok((FsEntry { mtime, item }, row.get(3)?))
             })
             .optional()?;
         let out;
@@ -93,7 +97,7 @@ impl<'c, I: ToSql + FromSql> MemoizedFsCacheSession<I> for SqliteSycnSession<'c>
                 let mut stmt = self.db.prepare_cached(r#"
                 UPDATE fs_walker_cache SET mtime_sec = ?2, mtime_nano = ?3, session_id = ?4, item = ?5 WHERE path = ?1
                 "#)?;
-                
+
                 stmt.execute(params![
                     sql_path,
                     sql_mtime_sec,
@@ -109,7 +113,7 @@ impl<'c, I: ToSql + FromSql> MemoizedFsCacheSession<I> for SqliteSycnSession<'c>
                 let mut stmt = self.db.prepare_cached(r#"
                 INSERT INTO fs_walker_cache (path, mtime_sec, mtime_nano, session_id, item) VALUES(?1, ?2, ?3, ?4, ?5)
                 "#)?;
-                
+
                 stmt.execute(params![
                     sql_path,
                     sql_mtime_sec,
@@ -121,25 +125,32 @@ impl<'c, I: ToSql + FromSql> MemoizedFsCacheSession<I> for SqliteSycnSession<'c>
                 row_id = self.db.last_insert_rowid();
             }
         }
-        let mut stmt = self.db.prepare_cached(r#"
+        let mut stmt = self.db.prepare_cached(
+            r#"
         INSERT INTO fs_walker_last_session_seen_rows (cache_row) VALUES(?1)
-        "#)?;
+        "#,
+        )?;
         stmt.execute(params![row_id])?;
         Ok(out)
     }
 
     fn end_session(self) -> Result<Self::Cache> {
-
-        self.db.execute(r#"
+        self.db.execute(
+            r#"
         DELETE FROM fs_walker_cache WHERE rowid NOT IN (
             SELECT fs_walker_last_session_seen_rows.cache_row 
             FROM fs_walker_last_session_seen_rows LEFT JOIN fs_walker_cache 
             ON fs_walker_cache.rowid=fs_walker_last_session_seen_rows.cache_row)
-        "#, [])?;
+        "#,
+            [],
+        )?;
 
-        self.db.execute(r#"
+        self.db.execute(
+            r#"
         DROP TABLE fs_walker_last_session_seen_rows;
-        "#, [])?;
+        "#,
+            [],
+        )?;
         Ok(self.db)
     }
 
@@ -170,32 +181,34 @@ pub fn setup_sqlite_cache(db: &Connection) -> Result<()> {
 }
 
 pub fn rollback_before_session_id(db: &Connection, id: u32) -> Result<()> {
-    let mut stmt = db.prepare(r#"
+    let mut stmt = db.prepare(
+        r#"
     DELETE FROM fs_walker_cache WHERE session_id >= ?
-    "#)?;
+    "#,
+    )?;
     stmt.execute(params![id])?;
 
-    let mut stmt = db.prepare(r#"
+    let mut stmt = db.prepare(
+        r#"
     DELETE FROM fs_walker_sessions WHERE session_id >= ?
-    "#)?;
+    "#,
+    )?;
     stmt.execute(params![id])?;
     Ok(())
 }
 
-
-
 impl ToSql for crate::change_watcher::FsNode {
-    fn to_sql(&self) -> std::result::Result<ToSqlOutput<'_>, rusqlite::Error> { 
+    fn to_sql(&self) -> std::result::Result<ToSqlOutput<'_>, rusqlite::Error> {
         #[cfg(feature = "sqlite_debug")]
         {
             let binary = serde_json::to_string_pretty(self)
-            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+                .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
             Ok(ToSqlOutput::Owned(Value::Blob(binary.into_bytes())))
         }
         #[cfg(not(feature = "sqlite_debug"))]
         {
-            let binary = bincode::serialize(self)
-            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(e))?;
+            let binary =
+                bincode::serialize(self).map_err(|e| rusqlite::Error::ToSqlConversionFailure(e))?;
             Ok(ToSqlOutput::Owned(Value::Blob(binary)))
         }
     }
@@ -203,7 +216,7 @@ impl ToSql for crate::change_watcher::FsNode {
 
 impl FromSql for crate::change_watcher::FsNode {
     fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-        match  value {
+        match value {
             ValueRef::Blob(bytes) => {
                 #[cfg(feature = "sqlite_debug")]
                 {
@@ -213,12 +226,11 @@ impl FromSql for crate::change_watcher::FsNode {
                 }
                 #[cfg(not(feature = "sqlite_debug"))]
                 {
-                    let node = bincode::deserialize(bytes)
-                        .map_err(|e| FromSqlError::Other(e))?;
+                    let node = bincode::deserialize(bytes).map_err(|e| FromSqlError::Other(e))?;
                     Ok(node)
                 }
             }
-            _ => Err(FromSqlError::InvalidType)
+            _ => Err(FromSqlError::InvalidType),
         }
     }
 }

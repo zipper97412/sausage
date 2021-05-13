@@ -1,6 +1,10 @@
-use std::{io::Write, path::{Path, PathBuf}, time::SystemTime};
+use std::{
+    io::Write,
+    path::{Path, PathBuf},
+    time::SystemTime,
+};
 
-use crate::{ChangeNotifier, FsChangeWatcher, FsEntry, FsProcessor, change_watcher::FsNode};
+use crate::{change_watcher::FsNode, ChangeNotifier, FsChangeWatcher, FsEntry, FsProcessor};
 
 use anyhow::Result;
 use std::collections::HashMap;
@@ -17,7 +21,7 @@ impl<W: Write> TarProcessor<W> {
         let mut builder = Builder::new(writer);
         builder.follow_symlinks(false);
         builder.mode(HeaderMode::Complete);
-        let notifier = ChangeNotifier::new(TarNotifier{builder});
+        let notifier = ChangeNotifier::new(TarNotifier { builder });
         Self(notifier)
     }
 }
@@ -36,10 +40,18 @@ impl<W: Write> FsChangeWatcher for TarNotifier<W> {
     fn notify_file_removed(&mut self, _path: &Path, mount_path: &Path) -> Result<()> {
         let mut header = Header::new_gnu();
         header.set_size(0);
-        header.set_mtime(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_secs());
+        header.set_mtime(
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)?
+                .as_secs(),
+        );
         let data: &[u8] = &[];
-        let new_filename = format!("{}.DELETED", mount_path.file_name().unwrap().to_string_lossy());
-        self.builder.append_data(&mut header, mount_path.with_file_name(new_filename), data)?;
+        let new_filename = format!(
+            "{}.DELETED",
+            mount_path.file_name().unwrap().to_string_lossy()
+        );
+        self.builder
+            .append_data(&mut header, mount_path.with_file_name(new_filename), data)?;
         Ok(())
     }
 
@@ -56,10 +68,18 @@ impl<W: Write> FsChangeWatcher for TarNotifier<W> {
     fn notify_symlink_removed(&mut self, _path: &Path, mount_path: &Path) -> Result<()> {
         let mut header = Header::new_gnu();
         header.set_size(0);
-        header.set_mtime(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_secs());
+        header.set_mtime(
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)?
+                .as_secs(),
+        );
         let data: &[u8] = &[];
-        let new_filename = format!("{}.DELETED", mount_path.file_name().unwrap().to_string_lossy());
-        self.builder.append_data(&mut header, mount_path.with_file_name(new_filename), data)?;
+        let new_filename = format!(
+            "{}.DELETED",
+            mount_path.file_name().unwrap().to_string_lossy()
+        );
+        self.builder
+            .append_data(&mut header, mount_path.with_file_name(new_filename), data)?;
         Ok(())
     }
 
@@ -76,10 +96,18 @@ impl<W: Write> FsChangeWatcher for TarNotifier<W> {
     fn notify_folder_removed(&mut self, _path: &Path, mount_path: &Path) -> Result<()> {
         let mut header = Header::new_gnu();
         header.set_size(0);
-        header.set_mtime(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_secs());
+        header.set_mtime(
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)?
+                .as_secs(),
+        );
         let data: &[u8] = &[];
-        let new_filename = format!("{}.DELETED", mount_path.file_name().unwrap().to_string_lossy());
-        self.builder.append_data(&mut header, mount_path.with_file_name(new_filename), data)?;
+        let new_filename = format!(
+            "{}.DELETED",
+            mount_path.file_name().unwrap().to_string_lossy()
+        );
+        self.builder
+            .append_data(&mut header, mount_path.with_file_name(new_filename), data)?;
         Ok(())
     }
 }
@@ -87,17 +115,27 @@ impl<W: Write> FsChangeWatcher for TarNotifier<W> {
 impl<W: Write> FsProcessor for TarProcessor<W> {
     type Item = FsNode;
 
-    fn process_file(&mut self, path: &Path, mount_path: &Path, previous: Option<Self::Item>) -> Result<Self::Item> {
+    fn process_file(
+        &mut self,
+        path: &Path,
+        mount_path: &Path,
+        previous: Option<Self::Item>,
+    ) -> Result<Self::Item> {
         self.0.process_file(path, mount_path, previous)
     }
 
-    fn process_symlink(&mut self, path: &Path, mount_path: &Path, previous: Option<Self::Item>) -> Result<Self::Item> {
+    fn process_symlink(
+        &mut self,
+        path: &Path,
+        mount_path: &Path,
+        previous: Option<Self::Item>,
+    ) -> Result<Self::Item> {
         self.0.process_symlink(path, mount_path, previous)
     }
 
     fn process_folder(
         &mut self,
-        path: &Path, 
+        path: &Path,
         mount_path: &Path,
         sub: HashMap<PathBuf, FsEntry<Self::Item>>,
         previous: Option<Self::Item>,

@@ -1,7 +1,7 @@
 use std::{fs::File, path::Path, thread::sleep, time::Duration};
 
 use rusqlite::Connection;
-use sausage::{MemoizedFsWalker, TarProcessor, rollback_before_session_id};
+use sausage::{rollback_before_session_id, MemoizedFsWalker, TarProcessor};
 
 mod common;
 use common::*;
@@ -44,7 +44,11 @@ fn test_many_run() -> Result<()> {
 
     rollback_before_session_id(&db, id)?;
 
-    run_memoized_walker(&mut db, &testdir, tmpdir.path().join("testing-diff-rollback.tar"))?;
+    run_memoized_walker(
+        &mut db,
+        &testdir,
+        tmpdir.path().join("testing-diff-rollback.tar"),
+    )?;
 
     // CHECK\
 
