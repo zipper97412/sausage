@@ -1,10 +1,10 @@
-use std::{io::Write, path::{Path, PathBuf}};
+use std::{io::Write, path::{Path, PathBuf}, time::SystemTime};
 
 use crate::{ChangeNotifier, FsChangeWatcher, FsEntry, FsProcessor, change_watcher::FsNode};
 
 use anyhow::Result;
 use std::collections::HashMap;
-use tar_impl::{Builder, HeaderMode};
+use tar_impl::{Builder, Header, HeaderMode};
 
 pub struct TarProcessor<W: Write>(ChangeNotifier<TarNotifier<W>>);
 
@@ -33,8 +33,13 @@ impl<W: Write> FsChangeWatcher for TarNotifier<W> {
         Ok(())
     }
 
-    fn notify_file_removed(&mut self, _path: &Path, _mount_path: &Path) -> Result<()> {
-        // TODO add file removed marker
+    fn notify_file_removed(&mut self, _path: &Path, mount_path: &Path) -> Result<()> {
+        let mut header = Header::new_gnu();
+        header.set_size(0);
+        header.set_mtime(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_secs());
+        let data: &[u8] = &[];
+        let new_filename = format!("{}.DELETED", mount_path.file_name().unwrap().to_string_lossy());
+        self.builder.append_data(&mut header, mount_path.with_file_name(new_filename), data)?;
         Ok(())
     }
 
@@ -48,8 +53,13 @@ impl<W: Write> FsChangeWatcher for TarNotifier<W> {
         Ok(())
     }
 
-    fn notify_symlink_removed(&mut self, _path: &Path, _mount_path: &Path) -> Result<()> {
-        // TODO add file removed marker
+    fn notify_symlink_removed(&mut self, _path: &Path, mount_path: &Path) -> Result<()> {
+        let mut header = Header::new_gnu();
+        header.set_size(0);
+        header.set_mtime(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_secs());
+        let data: &[u8] = &[];
+        let new_filename = format!("{}.DELETED", mount_path.file_name().unwrap().to_string_lossy());
+        self.builder.append_data(&mut header, mount_path.with_file_name(new_filename), data)?;
         Ok(())
     }
 
@@ -63,8 +73,13 @@ impl<W: Write> FsChangeWatcher for TarNotifier<W> {
         Ok(())
     }
 
-    fn notify_folder_removed(&mut self, _path: &Path, _mount_path: &Path) -> Result<()> {
-        // TODO add file removed marker
+    fn notify_folder_removed(&mut self, _path: &Path, mount_path: &Path) -> Result<()> {
+        let mut header = Header::new_gnu();
+        header.set_size(0);
+        header.set_mtime(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_secs());
+        let data: &[u8] = &[];
+        let new_filename = format!("{}.DELETED", mount_path.file_name().unwrap().to_string_lossy());
+        self.builder.append_data(&mut header, mount_path.with_file_name(new_filename), data)?;
         Ok(())
     }
 }
